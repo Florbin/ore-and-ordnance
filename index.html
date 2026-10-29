@@ -1154,7 +1154,7 @@ const MAPS=[
     pal:{ground:['#3b5530','#405c33','#456336','#4a6a39'],rock:['#2f3529','#384031','#262b21'],ridge:['#5d684e','#48523d'],cliff:['#252a1f','#363d2e'],speck:['rgba(0,0,0,.12)','rgba(220,255,180,.06)'],water:'#2f5f7a',shore:'rgba(196,204,150,.5)'},
     d:{hp:1.1,count:1.2,dmg:1.1,timer0:60,timeMul:1.1,spawns:[99,99],start:{copper:240,iron:80,crystal:0}}},
   // The Moon (MAPS[6], 2026-10-21): craters instead of mountains. Crater rims (terrain 1) can't be built on and block line of
-  // sight for towers (mortars lob over; Tower Stilts let a tower see over); crater floors can be built on. Ravines (terrain 1
+  // sight for towers (mortars lob over; Tower Stilts let a tower see over; since 2026-10-29 mountains block it on every map); crater floors can be built on. Ravines (terrain 1
   // with G.rav set) block walking and building but not sight. Low gravity: mortar shells hang longer, the drone drifts.
   {id:'moon',tp:2.5,name:'The Moon',diff:'Hard',rock:.9999,ores:7,moon:true,villages:true,tint:'rgb(222,228,244)',vign:'4,6,22',
     desc:'A cratered moon in low gravity. Crater rims block your towers\' line of sight, so set towers on Tower Stilts to shoot over them. Mortars lob over rims anyway, and their shells hang in the air. Crater floors can be built on, and your drone drifts like it\'s on ice.',
@@ -1174,7 +1174,7 @@ const BUILD={
   conveyor:{name:'Conveyor',key:'2',grp:0,cost:{copper:1},hp:30,spd:CSPEED,desc:'Carries ore in the direction of its arrows. Drag to lay a line. R rotates.'},
   bridge:{name:'Bridge',key:'3',grp:0,cost:{copper:6},hp:50,span:3,desc:'Carries ore over anything in between, as fast as your fastest belt (Mag-Lev). Place two bridges with the same arrow direction up to 3 tiles apart and they link. The far end pushes ore out in its arrow direction.'},
   tunnel:{name:'Tunnel',key:'U',grp:0,cost:{copper:10,iron:4},hp:70,span:10,desc:'Carries ore under mountains, as fast as your fastest belt. Place an entrance and an exit with the same arrow direction on either side of the rock, up to 10 tiles apart. Every tile between them must be mountain rock. Ore underground can\'t be hit.'},
-  stilt:{name:'Tower Stilts',key:'`',grp:0,cost:{copper:25,iron:15},hp:220,moon:true,desc:'Moon only. A tall steel platform. Build a weapon tower on top of it (hold the tower and click the stilts): the tower sees over crater rims and gets +1 range. Mortars lob over rims and don\'t need it.'},
+  stilt:{name:'Tower Stilts',key:'`',grp:0,cost:{copper:150,iron:100},hp:220,desc:'A tall steel platform. Build a weapon tower on top of it (hold the tower and click the stilts): the tower sees over mountains and crater rims and gets +1 range. Mortars lob over rock and don\'t need it.'},
   wall:{name:'Iron Wall',key:'4',grp:1,cost:{iron:6},hp:420,desc:'Tough plate. Ground enemies detour around walls when they can and smash through when they can\'t. Flyers ignore walls.'},
   gunner:{name:'Gunner',key:'5',grp:1,cost:{copper:30},hp:140,range:5.5,rate:.22,dmg:8,pspd:18,turn:9,air:true,desc:'Fast twin guns. Cheap and hits ground and air, but armor on titans and bosses soaks most of each bullet.'},
   cannon:{name:'Cannon',key:'6',grp:1,cost:{copper:40,iron:20},hp:200,range:8.5,rate:1.6,dmg:42,splash:1.4,pspd:9,turn:3.5,air:false,desc:'Slow long-range shells that splash a crowd. Ground only until the Flak upgrade.'},
@@ -7619,13 +7619,14 @@ function omMeteors(c,t){
 
 OUT_SPEC.moon={haze:[2,3,9],hz:[97.5,106],dim:.95,space:true,hzd:omHzd,pre:omPre,height:omHeight,misc:omMisc,layout:omLayout,col:omCol,near:omNear,draw:omDraw,
   wall:{th:0,fn(){}}};
-// ---- line of sight. While a tower on the Moon picks a target (LOSB is that tower), ground enemies behind a crater rim
-// are skipped. Flyers are always visible. Mortars lob over rims; aircraft, infantry posts and towers on stilts ignore it.
+// ---- line of sight (all maps). While a tower picks a target (LOSB is that tower), ground enemies behind rock (terrain 1:
+// mountains, ruined walls, crater rims on the Moon) are skipped. Flyers are always visible. Mortars lob over rock; aircraft,
+// infantry posts and towers on stilts ignore it.
 // Each sight check is cached per source point and target tile (G.losC), since the terrain never changes after generation.
 const NOLOS={mortar:1,hangar:1,helipad:1,barracks:1};
 const STILT_OK={gunner:1,cannon:1,flamer:1,sniper:1,tesla:1,cryo:1,prism:1,harpoon:1,toxin:1};
 let LOSB=null;
-const losNeeded=b=>!!(G&&G.moon&&b&&TOWERS[b.type]&&!NOLOS[b.type]&&!b.stilt);
+const losNeeded=b=>!!(G&&b&&TOWERS[b.type]&&!NOLOS[b.type]&&!b.stilt);
 function losRay(sx,sy,ex,ey){const dx=ex-sx,dy=ey-sy,n=Math.ceil(Math.hypot(dx,dy)*4),s0=(sy|0)*W+(sx|0),e0=(ey|0)*W+(ex|0);
   for(let k=1;k<n;k++){const px=sx+dx*k/n,py=sy+dy*k/n;if(px<0||py<0||px>=W||py>=H)continue;const i=(py|0)*W+(px|0);if(i===s0||i===e0)continue;if(G.terrain[i]===1&&!G.rav[i])return false}
   return true}
@@ -7671,7 +7672,7 @@ function drawStiltBase(c,b,t,bare,up){const x=b.x,y=b.y,s=b.w;up=up==null?stiltU
     const on=Math.sin((t||0)*3+(b.id||0))>.5;c.fillStyle=on?'#ff6a5a':'#5a2420';circ(c,x+s-.12,dy+.1,.035);c.fill()}
 }
 function drawStiltTower(c,b,t){const up=stiltUp(c,b);drawStiltBase(c,b,t,false,up);c.save();c.translate(0,-up);STILT_IN=1;try{drawBuilding(c,b,t)}finally{STILT_IN=0;c.restore()}}
-function stiltToolSync(){const el=toolEls.stilt;if(el)el.btn.hidden=!(G&&G.moon)}
+function stiltToolSync(){const el=toolEls.stilt;if(el)el.btn.hidden=!G}
 /* ---------- pathing ---------- */
 // dijk fills d with walking cost to the seed tiles. vi<0 is the core field (village halls are solid);
 // vi>=0 is that village's raid field (the core and the other halls are solid)
@@ -7829,7 +7830,6 @@ function placeCheck(type,tx,ty){
     if(G.vmask[i]&&!(G.vmask[i]===1&&VQ_LAND[type]))return 'That is village land. Only belts, bridges, tunnels and walls go there';
   }
   if(type==='drill'&&!G.ore[idx(tx,ty)])return 'Drills have to sit on ore';
-  if(BUILD[type].moon&&!G.moon)return 'Stilts are for the Moon';
   if(G.copy&&G.copy.t===type&&G.copy.t5!=null&&t5Count(type,G.copy.t5)>=T5_MAX)return 'You already have '+T5_MAX+' '+T5[type][G.copy.t5].n+'s. That is the most you can have at once';
   if(!G.sandbox&&Math.hypot(tx+s/2-G.drone.x,ty+s/2-G.drone.y)>buildRange())return 'Out of drone range. Fly closer with WASD';
   const cost=bcost(type);
@@ -15452,7 +15452,7 @@ function drawCursor(t,building,sel){
     const err=placeCheck(G.tool,tx,ty),sz=placeSize(G.tool);
     const onSt=(hb&&hb.type==='stilt'&&STILT_OK[G.tool])||!!(G.sandbox&&G.copy&&G.copy.t===G.tool&&G.copy.stilt);
     ctx.globalAlpha=.6;const gb=makeB(G.tool,tx,ty,G.rot);if(gb.type==='drill')gb.item=ITEMS[G.ore[idx(tx,ty)]]||'copper';if(onSt){gb.stilt=1;computeStats(gb)}if(G.sandbox&&G.copy)applyCopy(gb);drawBuilding(ctx,gb,t);ctx.globalAlpha=1;
-    if(G.moon&&TOWERS[G.tool]&&!NOLOS[G.tool]&&!onSt&&BUILD[G.tool].range&&sz===1)drawLosShade(ctx,tx+.5,ty+.5,BUILD[G.tool].range);
+    if(TOWERS[G.tool]&&!NOLOS[G.tool]&&!onSt&&BUILD[G.tool].range&&sz===1)drawLosShade(ctx,tx+.5,ty+.5,BUILD[G.tool].range);
     ctx.fillStyle=err?'rgba(226,86,63,.3)':'rgba(151,194,92,.18)';ctx.fillRect(tx,ty,sz,sz);
     ctx.strokeStyle=err?'#e2563f':'#97c25c';ctx.lineWidth=.06;ctx.strokeRect(tx+.03,ty+.03,sz-.06,sz-.06);
     if(G.tool==='conveyor'||LINKT[G.tool]){const[dx,dy]=DIRS[G.rot];ctx.fillStyle=err?'#e2563f':'#c7e59d';ctx.save();ctx.translate(tx+.5+dx*.75,ty+.5+dy*.75);ctx.rotate(G.rot*Math.PI/2);ctx.beginPath();ctx.moveTo(.16,0);ctx.lineTo(-.1,-.16);ctx.lineTo(-.1,.16);ctx.fill();ctx.restore()}
@@ -17079,7 +17079,6 @@ function applyCopy(b){const C=G.copy;if(!C||C.t!==b.type)return;b.tiers=C.tr.sli
 function setTool(t){
   if(!G||!G.started||G.over)return;G.copy=null;
   if(t&&BUILD[t]&&towerLocked(t)){questTip(t);return}
-  if(t&&BUILD[t]&&BUILD[t].moon&&!G.moon)return;
   G.tool=t;if(t){G.sel=null;setMode(null)}
   for(const k in toolEls)toolEls[k].btn.setAttribute('aria-pressed',String(k===t));
 }
@@ -17147,8 +17146,9 @@ function selBody(b){
   if(b.buffD>0)st+=row(b.buffSrc||'Boosted','+'+Math.round(b.buffD*100)+'% dmg, +'+Math.round(b.buffR*100)+'% rate'+(b.buffG?', +'+Math.round(b.buffG*100)+'% range':''));
   if(b.aaCmd&&!(s&&s.aaCmd))st+=row('Anti-air link','Hits flyers'+(b.aaCmd>.01?', +'+Math.round(b.aaCmd*100)+'% vs them':''));
   if(b.guardDR)st+=row('Repair Station shield','−'+Math.round(b.guardDR*100)+'% damage taken');
-  if(G.moon&&TOWERS[b.type])st+=row('Line of sight',b.stilt?'On stilts · sees over crater rims, +1 range':NOLOS[b.type]?'Lobs over crater rims':'<span class="c-bad">Blocked by crater rims</span>');
-  if(b.type==='stilt')extra='<p>Hold a weapon tower and click these stilts to build it on top. A tower on stilts sees over crater rims and gets +1 range.</p>';
+  const rockW=G.moon?'crater rims':'mountains';
+  if(TOWERS[b.type])st+=row('Line of sight',b.stilt?'On stilts · sees over '+rockW+', +1 range':NOLOS[b.type]?'Lobs over '+rockW:'<span class="c-bad">Blocked by '+rockW+'</span>');
+  if(b.type==='stilt')extra='<p>Hold a weapon tower and click these stilts to build it on top. A tower on stilts sees over '+rockW+' and gets +1 range.</p>';
   if(b.trap&&!tag)tag='<span class="tag">Trap · ground</span>';
   const T=t5Of(b);
   if(T){st+=t5Rows(b,T);return `<h3 class="t5h"><img class="t5i" src="${t5IconURL(b.type,b.t5)}" alt="">${T.n}<span class="tag t5tag" style="--tc:${T.col}">Tier 5</span>${tag}</h3><div class="stats">${st}</div><p class="t5d">${T.d}</p>${extra}`}
@@ -17734,7 +17734,7 @@ const HELP=[
      drawBuilding(c,hB('command',6.3,.9),t);const g=hB('gunner',6.3,2.3);g.ang=-.5+Math.sin(t)*.3;drawBuilding(c,g,t);
      c.fillStyle='#e0b24f';const bx=7.14,by=2.4;c.beginPath();c.moveTo(bx-.09,by+.07);c.lineTo(bx,by-.02);c.lineTo(bx+.09,by+.07);c.lineTo(bx+.09,by+.12);c.lineTo(bx,by+.03);c.lineTo(bx-.09,by+.12);c.fill();
      hTxt(c,1.5,4.3,'Radar','#8fc4e8',.22);hTxt(c,4.4,4.3,'Repair','#97c25c',.22);hTxt(c,6.8,4.3,'Command','#e0b24f',.22)}},
-  {t:'The Moon: craters and stilts',d:'On the Moon, <b>crater rims</b> block a tower\'s line of sight to ground enemies (flyers are always in sight). Selecting a tower darkens the tiles it can\'t see. Put a weapon tower on <b>Tower Stilts</b> <kbd>`</kbd> and it sees over rims with +1 range. <b>Mortars</b> lob over rims. Crater floors can be built on, ravines can\'t, mortar shells hang in the low gravity and your drone drifts.',
+  {t:'Line of sight and stilts',d:'<b>Mountains</b> (and <b>crater rims</b> on the Moon) block a tower\'s line of sight to ground enemies (flyers are always in sight). Selecting a tower darkens the tiles it can\'t see. Put a weapon tower on <b>Tower Stilts</b> <kbd>`</kbd> (150 copper, 100 iron) and it sees over rock with +1 range. <b>Mortars</b> lob over rock. Crater floors can be built on, ravines can\'t, mortar shells hang in the low gravity and your drone drifts.',
    draw(c,t){moonScene(c,(t%8)+3,8,null)}},
   {t:'Lightning, frost and crystal',d:'A <b>Tesla Coil</b> <kbd>[</kbd> zaps an enemy and the lightning jumps to more around it, getting past shields. A <b>Cryo Projector</b> <kbd>]</kbd> sprays mist that slows; its Deep Freeze path freezes enemies solid. A <b>Prism Tower</b> <kbd>I</kbd> fires a beam that heats up the longer it stays on one target, and costs a little crystal.',
    draw(c,t){hBg(c);const te=hB('tesla',.9,1.4),cr=hB('cryo',3.5,1.4),pr=hB('prism',6.1,1.4);
@@ -18598,7 +18598,7 @@ function bSnap(b){
 function bFromSnap(o){
   if(!BUILD[o.t])return null;const t5p=o.t5!=null&&T5[o.t]?o.t5|0:null,sz=(BUILD[o.t].size||1)*(t5p!=null?2:1);
   for(let y=o.y;y<o.y+sz;y++)for(let x=o.x;x<o.x+sz;x++)if(!inb(x,y)||!tileOkFor(o.t,idx(x,y))||G.bmap[idx(x,y)]||G.vmask[idx(x,y)])return null;
-  const b=makeB(o.t,o.x,o.y,o.r);b.tiers=[0,1,2].map(i=>(o.tr&&o.tr[i])|0);if(t5p!=null){b.t5=t5p;b.w=b.h=sz}if(o.sl&&MAPS[G.map].moon)b.stilt=1;
+  const b=makeB(o.t,o.x,o.y,o.r);b.tiers=[0,1,2].map(i=>(o.tr&&o.tr[i])|0);if(t5p!=null){b.t5=t5p;b.w=b.h=sz}if(o.sl)b.stilt=1;
   computeStats(b);b.maxHp=b.st.hp;b.hp=clamp(+o.hp||b.maxHp,1,b.maxHp);
   b.spent=Object.assign({},o.sp||{});b.kills=o.k||0;b.dmg=o.dm||0;b.dmgW=o.dw||0;if(o.tg)b.tgt=o.tg;
   switch(o.t){
@@ -18857,7 +18857,8 @@ function start(){
     newGame(false,i,seed);
   }
   $('startOv').hidden=true;if(!G.started){G.started=true;toast(MAPS[G.map].name+' · first wave in '+fmtTime(G.timer)+'. Get drills on that copper.','wave',3);
-    if(G.moon&&(!TUT.on||TUT.seen.moon))setTimeout(()=>{if(G&&G.moon&&G.started)toast('Moon · crater rims block line of sight. Put towers on Tower Stilts ( ` ) to shoot over them.','tip',6)},3400)}G.paused=false;$('pauseBanner').hidden=true;$('pauseOv').hidden=true;$('pauseBtn').firstChild.textContent='Pause '}
+    if(G.moon&&(!TUT.on||TUT.seen.moon))setTimeout(()=>{if(G&&G.moon&&G.started)toast('Moon · crater rims block line of sight. Put towers on Tower Stilts ( ` ) to shoot over them.','tip',6)},3400)
+    else if(!G.moon&&!TUT.on)setTimeout(()=>{if(G&&!G.moon&&G.started&&G.wave<2)toast('Mountains block your towers\' line of sight. Tower Stilts ( ` ) let a tower shoot over them.','tip',6)},3400)}G.paused=false;$('pauseBanner').hidden=true;$('pauseOv').hidden=true;$('pauseBtn').firstChild.textContent='Pause '}
 /* ---------- title screen & game modes ---------- */
 // The title screen shows on every page load. Play opens the game mode picker (Campaign or Headquarters).
 // Campaign leads to the original map select screen; Headquarters deploys straight onto a random 4× map.
